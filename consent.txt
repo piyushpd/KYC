@@ -1,0 +1,53 @@
+type ConsentStruct struct {
+
+	CustomerId               string `json:"customerId"`
+	NewCollectionName           string `json:"newcollectionname"`
+
+}
+
+
+
+
+
+func(t *Controller) Consent(stub shim.ChaincodeStubInterface,function string, args []string,logdetails []string ) (returndata []byte, err error){
+	inputobj:=args[0]
+	collectionName:=args[1]
+	var inputKYCDetailsObj ConsentStruct
+	var selectedKYCDetailsObj KYC_struct
+	
+	err = json.Unmarshal([]byte(inputobj), &inputKYCDetailsObj)
+	customerId:=inputKYCDetailsObj.CustomerId
+	newCollectionName:=inputKYCDetailsObj.NewCollectionName
+
+	kycBytes, err := stub.GetPrivateData(collectionName,customerId)
+	
+	if err != nil {
+		fmt.Printf("Error Invalid customer ID", err)
+		return nil, err
+	}
+
+	if len(kycBytes) > 0 {
+			
+		privateresponsebytes,err:=json.Marshal(kycBytes)
+		if err != nil {
+				return nil, err
+			}
+		
+		err = stub.PutPrivateData(newcollectionName, customerId, privateresponsebytes)
+		if err != nil {
+			return nil, err
+		}
+
+
+		returndata=privateresponsebytes
+		return returndata,err
+	}
+	
+	else{
+		err = errors.New("Private data doesnt exist")
+		if err != nil {
+		return nil, err
+		}
+
+	}
+}		

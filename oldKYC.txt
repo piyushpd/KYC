@@ -1,0 +1,174 @@
+//kyc
+
+
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"bytes"
+
+	"github.com/hyperledger/fabric/core/chaincode/shim"
+	pb "github.com/hyperledger/fabric/protos/peer"
+	"github.com/hyperledger/fabric/common/flogging"
+	"github.com/hyperledger/fabric-chaincode-go/pkg/cid"
+	
+	
+)
+
+type SmartContract struct {}
+
+
+
+type Person struct {
+
+	Country_of_Citizenship string `json:"country_of_citizenship"`
+	First_Name string `json:"first_name"`
+	Middle_Name string `json:"middle_name"`
+	Last_Name string `json:"last_name"`
+    Age string `json:"age"`
+	Comments string `json:"age"`
+	Status string `json:"status"`
+}
+
+
+
+func (s *SmartContract) Init(APIstub shim.ChaincodeStubInterface) sc.Response {
+
+  return shim.Success(nil)
+}
+
+
+
+func (s *SmartContract) Invoke(APIstub shim.ChaincodeStubInterface) sc.Response {
+
+ function, args := APIstub.GetFunctionAndParameters()
+
+ if func == "queryKYC"
+	{return s.queryKYC(APIstub, args)}
+	
+ else if func == "createKYC"
+     { return s.createKYC(APIstub, args)  }
+
+ else
+    return shim.Error("Invalid Smart Contract function name.")
+}
+
+
+
+
+
+
+func (s *SmartContract) createKYC(APIstub shim.ChaincodeStubInterface, args []string) sc.Response {
+
+    if len(args) != 5 {
+        return shim.Error("Incorrect number of arguments. Expecting 5")
+    }
+
+	var person = Person{Country_of_Citizenship: args[1], 
+		         First_Name: args[2], Middle_Name: args[3], 
+				 Last_Name: args[4], Age: args[5]}
+	person.Status= "NewlyCreatedPendingVerification"
+	personAsBytes, _ := json.Marshal(person)
+	  APIstub.PutState(args[0], personAsBytes)
+	  return shim.Success(personAsBytes)
+}
+
+
+func (s *SmartContract) queryKYC(APIstub shim.ChaincodeStubInterface, args []string) sc.Response {
+
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting 1")
+		}
+		
+		personAsBytes, _ := APIstub.GetState(args[0])
+		return shim.Success(personAsBytes)
+	}
+		
+
+
+func (s *SmartContract) validateKYC(APIstub shim.ChaincodeStubInterface, args []string) sc.Response {
+
+       //ID, Status, Comments
+		if len(args) != 3 {
+			return shim.Error("Incorrect number of arguments. Expecting 3")
+			}
+			
+			personAsBytes, _ := APIstub.GetState(args[0])
+			person := Person{}
+
+      json.Unmarshal(personAsBytes, &person)
+       if args[1]= "Approved"
+   {
+	person.Status="Approved"
+	person.Comments= args[2]
+	personAsBytes, _ = json.Marshal(person)
+	APIstub.PutState(args[0], personAsBytes)
+	return shim.Success(personAsBytes)
+   }
+
+     else
+   {
+	person.Status= "Rejected"
+	person.Comments= args[2]
+	personAsBytes, _ = json.Marshal(person)
+	APIstub.PutState(args[0], personAsBytes)
+	return shim.Success(personAsBytes)
+   }
+
+
+
+
+
+
+
+
+
+
+
+
+func (s *SmartContract) getHistoryKYC(stub shim.ChaincodeStubInterface, args []string) sc.Response {
+	 
+	if len(args) < 1 {
+	   return shim.Error("Incorrect number of arguments. Expecting 1")
+   }
+
+   kycId := args[0]
+   resultsIterator	:= stub.GetHistoryForKey(kycId)
+	defer resultsIterator.Close()
+		var buffer bytes.Buffer
+	buffer.WriteString("[")
+	bArrayMemberAlreadyWritten := false
+	for resultsIterator.HasNext() {
+		response, err := resultsIterator.Next()
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+		if bArrayMemberAlreadyWritten == true {
+			buffer.WriteString(",")
+		}
+		buffer.WriteString("{\"TxId\":")
+		buffer.WriteString("\"")
+		buffer.WriteString(response.TxId)
+		buffer.WriteString("\"")
+		buffer.WriteString(", \"Value\":")
+		buffer.WriteString(", \"Timestamp\":")
+		buffer.WriteString("\"")
+		buffer.WriteString(time.Unix(response.Timestamp.Seconds, int64(response.Timestamp.Nanos)).String())
+		buffer.WriteString("\"")
+
+		buffer.WriteString(", \"IsDelete\":")
+		buffer.WriteString("\"")
+		buffer.WriteString(strconv.FormatBool(response.IsDelete))
+		buffer.WriteString("\"")
+
+		buffer.WriteString("}")
+		bArrayMemberAlreadyWritten = true
+	}
+	buffer.WriteString("]")
+
+	fmt.Printf("- getHistoryForCar returning:\n%s\n", buffer.String())
+
+	return shim.Success(buffer.Bytes())
+}
